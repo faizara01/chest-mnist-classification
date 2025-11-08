@@ -4,30 +4,39 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from datareader import get_data_loaders, NEW_CLASS_NAMES
-from model import SimpleCNN
+from model import ImprovedCNN
 import matplotlib.pyplot as plt
 from utils import plot_training_history, visualize_random_val_predictions
 
-# --- Hyperparameter ---
-EPOCHS = 16
-BATCH_SIZE = 16
-LEARNING_RATE = 0.0003
+# --- Updated Hyperparameters ---
+EPOCHS = 30
+BATCH_SIZE = 32
+LEARNING_RATE = 0.0001
+WEIGHT_DECAY = 0.0001
 
 #Menampilkan plot riwayat training dan validasi setelah training selesai.
 
 def train():
-    # 1. Memuat Data
+    # 1. Load Data
     train_loader, val_loader, num_classes, in_channels = get_data_loaders(BATCH_SIZE)
     
-    # 2. Inisialisasi Model
-    model = SimpleCNN(in_channels=in_channels, num_classes=num_classes)
+    # 2. Initialize Model
+    model = ImprovedCNN(in_channels=in_channels, num_classes=num_classes)
     print(model)
     
-    # 3. Mendefinisikan Loss Function dan Optimizer
-    # Gunakan BCEWithLogitsLoss untuk klasifikasi biner. Ini lebih stabil secara numerik.
+    # 3. Define Loss Function and Optimizer
     criterion = nn.BCEWithLogitsLoss()
-    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
+    optimizer = optim.AdamW(model.parameters(), 
+                          lr=LEARNING_RATE, 
+                          weight_decay=WEIGHT_DECAY)
     
+    # Learning rate scheduler
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                    mode='min', 
+                                                    factor=0.5, 
+                                                    patience=3, 
+                                                    verbose=True)
+
     # Inisialisasi list untuk menyimpan history
     train_losses_history = []
     val_losses_history = []
@@ -97,6 +106,9 @@ def train():
               f"Train Loss: {avg_train_loss:.4f} | Train Acc: {train_accuracy:.2f}% | "
               f"Val Loss: {avg_val_loss:.4f} | Val Acc: {val_accuracy:.2f}%")
 
+        # Update learning rate
+        scheduler.step(avg_val_loss)
+
     print("--- Training Selesai ---")
     
     # Tampilkan plot
@@ -108,4 +120,3 @@ def train():
 
 if __name__ == '__main__':
     train()
-    
